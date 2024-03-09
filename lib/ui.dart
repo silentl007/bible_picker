@@ -25,12 +25,15 @@ class _BiblePickerState extends State<BiblePicker> {
   TextEditingController chapterController = TextEditingController();
   TextEditingController verseFirstController = TextEditingController();
   TextEditingController verseSecondController = TextEditingController();
+  TextEditingController customVerseController = TextEditingController();
   int currentBookIndex = 0;
   int currentFirstVerse = 0;
   int currentSecondVerse = 0;
   int currentChapter = 0;
   String bibleVerse = '';
   String bibleBookChapterVerse = '';
+  List<Map> bibleCustomVerses = [];
+  int radioGroup = 1;
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -75,6 +78,13 @@ class _BiblePickerState extends State<BiblePicker> {
           customDivider(height: 15),
           Row(
             children: [
+              radioOptions(1, 'Single'),
+              customhorizontal(width: 15),
+              radioOptions(2, 'Multiple')
+            ],
+          ),
+          Row(
+            children: [
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -98,109 +108,275 @@ class _BiblePickerState extends State<BiblePicker> {
                 ),
               ),
               customhorizontal(width: 10),
-              Expanded(
-                  flex: 2,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Verse',
-                        style: Decor().textStyle(size: 16),
-                      ),
-                      customDivider(height: 10),
-                      Row(
-                        children: [
-                          Expanded(
-                              child: TextFormField(
-                            controller: verseFirstController,
-                            readOnly: true,
-                            onTap: () {
-                              if (bookController.text.isNotEmpty &&
-                                  chapterController.text.isNotEmpty) {
-                                bibleFirstVersePicker();
-                              }
-                            },
-                            decoration:
-                                Decor().textform(suffixIcon: sufficIcon()),
-                          )),
-                          Container(
-                              color: UserColors.purple,
-                              height: 60,
-                              width: 50,
-                              child: Center(
-                                child: Text(
-                                  'To',
-                                  style: Decor()
-                                      .textStyle(size: 18, color: Colors.white),
-                                ),
-                              )),
-                          Expanded(
-                              child: TextFormField(
-                            controller: verseSecondController,
-                            readOnly: true,
-                            onTap: () {
-                              if (bookController.text.isNotEmpty &&
-                                  chapterController.text.isNotEmpty &&
-                                  verseFirstController.text.isNotEmpty) {
-                                bibleSecondVersePicker();
-                              }
-                            },
-                            decoration:
-                                Decor().textform(suffixIcon: sufficIcon()),
-                          )),
-                        ],
-                      )
-                    ],
-                  ))
+              if (radioGroup == 1)
+                Expanded(
+                    flex: 2,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Verse',
+                          style: Decor().textStyle(size: 16),
+                        ),
+                        customDivider(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                                child: TextFormField(
+                              controller: verseFirstController,
+                              readOnly: true,
+                              onTap: () {
+                                if (bookController.text.isNotEmpty &&
+                                    chapterController.text.isNotEmpty) {
+                                  bibleFirstVersePicker();
+                                }
+                              },
+                              decoration:
+                                  Decor().textform(suffixIcon: sufficIcon()),
+                            )),
+                            Container(
+                                color: UserColors.purple,
+                                height: 60,
+                                width: 50,
+                                child: Center(
+                                  child: Text(
+                                    'To',
+                                    style: Decor().textStyle(
+                                        size: 18, color: Colors.white),
+                                  ),
+                                )),
+                            Expanded(
+                                child: TextFormField(
+                              controller: verseSecondController,
+                              readOnly: true,
+                              onTap: () {
+                                if (bookController.text.isNotEmpty &&
+                                    chapterController.text.isNotEmpty &&
+                                    verseFirstController.text.isNotEmpty) {
+                                  bibleSecondVersePicker();
+                                }
+                              },
+                              decoration:
+                                  Decor().textform(suffixIcon: sufficIcon()),
+                            )),
+                          ],
+                        )
+                      ],
+                    ))
             ],
           ),
-          if (bibleVerse.isNotEmpty)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+          if (radioGroup != 1)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                customDivider(height: 20),
+                Text(
+                  'Verses',
+                  style: Decor().textStyle(size: 16),
+                ),
+                customDivider(height: 10),
+                TextFormField(
+                  controller: customVerseController,
+                  decoration: Decor().textform(),
+                  onChanged: (value) {
+                    setState(() {
+                      bibleVerse = '';
+                      bibleCustomVerses = [];
+                    });
+                  },
+                )
+              ],
+            ),
+          Row(
+            mainAxisAlignment: radioGroup != 1
+                ? MainAxisAlignment.spaceBetween
+                : MainAxisAlignment.end,
+            children: [
+              if (radioGroup != 1)
+                TextButton(
+                    onPressed: () {
+                      if (bookController.text.trim().isNotEmpty &&
+                          chapterController.text.trim().isNotEmpty &&
+                          customVerseController.text.trim().isNotEmpty) {
+                        generateCustomVerses();
+                      }
+                    },
+                    child: Text(
+                      'Get verses',
+                      style: Decor().textStyle(),
+                    )),
+              if (bibleVerse.isNotEmpty || bibleCustomVerses.isNotEmpty)
                 TextButton(
                     onPressed: () {
                       bottomSheetWidget(
                           context: context,
                           height: 500,
                           useInternalPadding: false,
-                          body: Column(
-                            children: [
-                              Container(
-                                height: 50,
-                                width: double.infinity,
-                                color: UserColors.purple,
-                                alignment: Alignment.centerLeft,
-                                padding: const EdgeInsets.only(left: 15),
-                                child: Text(
-                                  bibleBookChapterVerse,
-                                  style: Decor()
-                                      .textStyle(size: 18, color: Colors.white),
-                                ),
-                              ),
-                              Expanded(
-                                  child: SingleChildScrollView(
-                                child: Padding(
-                                  padding: internalPadding(),
-                                  child: Text(
-                                    bibleVerse,
-                                    style: Decor().textStyle(size: 18),
-                                  ),
-                                ),
-                              ))
-                            ],
-                          ));
+                          body: bibleCustomVerses.isEmpty
+                              ? Column(
+                                  children: [
+                                    Container(
+                                      height: 50,
+                                      width: double.infinity,
+                                      color: UserColors.purple,
+                                      alignment: Alignment.centerLeft,
+                                      padding: const EdgeInsets.only(left: 15),
+                                      child: Text(
+                                        bibleBookChapterVerse,
+                                        style: Decor().textStyle(
+                                            size: 18, color: Colors.white),
+                                      ),
+                                    ),
+                                    Expanded(
+                                        child: SingleChildScrollView(
+                                      child: Padding(
+                                        padding: internalPadding(),
+                                        child: Text(
+                                          bibleVerse,
+                                          style: Decor().textStyle(size: 18),
+                                        ),
+                                      ),
+                                    ))
+                                  ],
+                                )
+                              : SingleChildScrollView(
+                                  child: Column(
+                                      children: bibleCustomVerses
+                                          .map((e) => Column(
+                                                children: [
+                                                  Container(
+                                                    height: 50,
+                                                    width: double.infinity,
+                                                    color: UserColors.purple,
+                                                    alignment:
+                                                        Alignment.centerLeft,
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                            left: 15),
+                                                    child: Text(
+                                                      e['book'],
+                                                      style: Decor().textStyle(
+                                                          size: 18,
+                                                          color: Colors.white),
+                                                    ),
+                                                  ),
+                                                  Padding(
+                                                    padding: internalPadding(),
+                                                    child: Text(
+                                                      e['verse'],
+                                                      style: Decor()
+                                                          .textStyle(size: 18),
+                                                    ),
+                                                  )
+                                                ],
+                                              ))
+                                          .toList()),
+                                ));
                     },
                     child: Text(
                       'View Bible verse',
                       style: Decor().textStyle(color: UserColors.purple),
                     )),
-              ],
-            ),
+            ],
+          ),
           customDivider(height: 15),
         ],
       ),
     );
+  }
+
+  Widget radioOptions(int radioValue, String title) => Row(
+        children: [
+          Radio(
+              value: radioValue,
+              groupValue: radioGroup,
+              onChanged: (value) {
+                setState(() {
+                  radioGroup = radioValue;
+                  verseFirstController.text = '';
+                  verseSecondController.text = '';
+                  currentFirstVerse = 0;
+                  currentSecondVerse = 0;
+                  bibleVerse = '';
+                  bibleCustomVerses = [];
+                  customVerseController.text = '';
+                });
+              }),
+          customhorizontal(width: 5),
+          Text(
+            title,
+            style: Decor().textStyle(),
+          )
+        ],
+      );
+  generateCustomVerses() async {
+    bibleVerse = '';
+    bibleCustomVerses = [];
+    String bibleBookChapter =
+        '${bookController.text} ${chapterController.text}';
+    List<String> customVerses = customVerseController.text.trim().split(',');
+    for (String element in customVerses) {
+      if (element.contains('-')) {
+        String extractedVerse =
+            await bibleRangeVerse('$bibleBookChapter:${element.trim()}');
+        bibleCustomVerses.add({
+          'book': '$bibleBookChapter:${element.trim()}',
+          'verse': extractedVerse
+        });
+      } else {
+        String extractedVerse = await getSingleVerse(element.trim());
+        bibleCustomVerses.add({
+          'book': '$bibleBookChapter:${element.trim()}',
+          'verse': extractedVerse
+        });
+      }
+    }
+    setState(() {});
+  }
+
+  Future<String> getSingleVerse(String verse) async {
+    String resultText = '';
+    List result = await BibleDataBase.instance.getVerse(
+        bookID: (currentBookIndex + 1).toString(),
+        chapterID: currentChapter.toString(),
+        verseID: verse.toString());
+    if (result.isNotEmpty) {
+      resultText = result.first['text'];
+    }
+    return resultText;
+  }
+
+  Future<String> bibleRangeVerse(String book) async {
+    String rangeBible = book;
+    List<String> splitRangeBible = rangeBible.split(' ');
+    String bibleBook = '';
+    String chapterBible = '';
+    List<String> verseBible = [];
+    String bookIndex = '';
+    if (splitRangeBible.length == 2) {
+      bibleBook = splitRangeBible.first;
+    } else {
+      bibleBook = '${splitRangeBible[0]} ${splitRangeBible[1]}';
+    }
+    chapterBible = splitRangeBible.last.split(':').first;
+    verseBible = splitRangeBible.last.split(':').last.split('-');
+    for (var element in bibleBooks) {
+      if (element['book'] == bibleBook) {
+        bookIndex = element['index'].toString();
+      }
+    }
+    // dev.log('<========== $bibleBook =============>');
+    // dev.log('<========== $chapterBible =============>');
+    // dev.log('<========== $verseBible =============>');
+    // dev.log('<========== $bookIndex =============>');
+    List bookVerses = await BibleDataBase.instance.getRangeVerse(
+        bookID: bookIndex, chapterID: chapterBible, verseRange: verseBible);
+    if (radioGroup == 1) {
+      bibleVerse = bookVerses.join('\n\n');
+    }
+
+    setState(() {});
+    return bookVerses.join('\n\n');
   }
 
   biblePicker() {
@@ -218,7 +394,12 @@ class _BiblePickerState extends State<BiblePicker> {
                             dbName: bibleVersions[index].dbName,
                             assetPath: bibleVersions[index].assetPath);
                     if (isInitialized) {
-                      bibleRangeVerse(bibleBookChapterVerse);
+                      if (radioGroup == 1 && bibleBookChapterVerse.isNotEmpty) {
+                        bibleRangeVerse(bibleBookChapterVerse);
+                      } else if (radioGroup == 2 &&
+                          customVerseController.text.isNotEmpty) {
+                        generateCustomVerses();
+                      }
                     }
                   }
                   if (mounted) {
@@ -263,6 +444,9 @@ class _BiblePickerState extends State<BiblePicker> {
                             verseFirstController.text = '';
                             verseSecondController.text = '';
                             bibleVerse = '';
+                            bibleCustomVerses = [];
+                            customVerseController.text = '';
+
                             Navigator.pop(context);
                           },
                           title: Text(bibleFilter[index]['book']),
@@ -293,6 +477,8 @@ class _BiblePickerState extends State<BiblePicker> {
                     bibleVerse = '';
                     verseFirstController.text = '';
                     verseSecondController.text = '';
+                    bibleCustomVerses = [];
+                    customVerseController.text = '';
                     Navigator.pop(context);
                   },
                   title: Text(chapterInts[index].toString()),
@@ -362,34 +548,5 @@ class _BiblePickerState extends State<BiblePicker> {
             itemCount: verseInts.length),
       ),
     );
-  }
-
-  bibleRangeVerse(String book) async {
-    String rangeBible = book;
-    List<String> splitRangeBible = rangeBible.split(' ');
-    String bibleBook = '';
-    String chapterBible = '';
-    List<String> verseBible = [];
-    String bookIndex = '';
-    if (splitRangeBible.length == 2) {
-      bibleBook = splitRangeBible.first;
-    } else {
-      bibleBook = '${splitRangeBible[0]} ${splitRangeBible[1]}';
-    }
-    chapterBible = splitRangeBible.last.split(':').first;
-    verseBible = splitRangeBible.last.split(':').last.split('-');
-    for (var element in bibleBooks) {
-      if (element['book'] == bibleBook) {
-        bookIndex = element['index'].toString();
-      }
-    }
-    // dev.log('<========== $bibleBook =============>');
-    // dev.log('<========== $chapterBible =============>');
-    // dev.log('<========== $verseBible =============>');
-    // dev.log('<========== $bookIndex =============>');
-    List bookVerses = await BibleDataBase.instance.getRangeVerse(
-        bookID: bookIndex, chapterID: chapterBible, verseRange: verseBible);
-    bibleVerse = bookVerses.join('\n\n');
-    setState(() {});
   }
 }

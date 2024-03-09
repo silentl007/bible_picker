@@ -42,20 +42,21 @@ class _BibleState extends State<Bible> {
     final response = await http.get(url);
     // log(response.body.toString());
     try {
-      // Parse the XML response
-      xml2json.parse(response.body);
+      if (response.statusCode == 200) {
+        // Parse the XML response
+        xml2json.parse(response.body);
 
 // Convert XML to JSON format
-      var jsondata = xml2json.toGData();
-      var data = json.decode(jsondata);
+        var jsondata = xml2json.toGData();
+        var data = json.decode(jsondata);
 
 // Extract top stories from the JSON data
-      setState(() {
-        topStories = data;
-      });
-
-// Print top stories to console (for debugging)
-      log('<========== $topStories =============>');
+        setState(() {
+          topStories = data;
+        });
+        log('<========== ${topStories['rss']['channel']['item'].first['description']['\$t'].split(',')} =============>');
+        log('<========== ${topStories['rss']['channel']['item'].first['link']} =============>');
+      }
     } catch (e) {
       log('<========== $e =============>');
     }
@@ -69,57 +70,70 @@ class _BibleState extends State<Bible> {
       CustomPopupMenuController();
   final CustomPopupMenuController popcontrollerverse =
       CustomPopupMenuController();
+  final CustomPopupMenuController popcontrollerversesecond =
+      CustomPopupMenuController();
   TextEditingController bible =
       TextEditingController(text: 'American Standard Version (1901)');
   TextEditingController book = TextEditingController();
   TextEditingController chapter = TextEditingController();
   TextEditingController verse = TextEditingController();
-  int currentBookIndex = 0;
   int currentVerse = 0;
+  TextEditingController verseSecond = TextEditingController();
+  int currentVerseSecond = 0;
+  int currentBookIndex = 0;
   int currentChapter = 0;
   String bibleVerse = '';
+  String bibleBookChapterVerse = '';
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
-        body: Column(
-          children: [
-            separator(height: 35),
-            const Text('Bible'),
-            separator(height: 5),
-            bibleWidget(),
-            const Text('Book'),
-            separator(height: 5),
-            bookWidget(),
-            separator(height: 15),
-            const Text('Chapter'),
-            separator(height: 5),
-            chapterWidget(),
-            separator(height: 15),
-            const Text('Verse'),
-            separator(height: 5),
-            verseWidget(),
-            separator(height: 25),
-            Text(bibleVerse),
-            separator(height: 25),
-            ElevatedButton(
-                onPressed: () {
-                  getArticles();
-                },
-                child: const Text('Arcile')),
-            separator(height: 25),
-            ElevatedButton(
-                onPressed: () {
-                  log('<========== ${topStories['rss']['channel']['item'].first['description']['\$t'].split(',')} =============>');
-                },
-                child: const Text('view')),
-            separator(height: 25),
-            ElevatedButton(
-                onPressed: () async {
-                  // bibleRangeVerse(topStories['rss']['channel']['item'].first);
-                },
-                child: const Text('Resolve range verses')),
-          ],
+        body: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                separator(height: 35),
+                const Text('Bible'),
+                separator(height: 5),
+                bibleWidget(),
+                const Text('Book'),
+                separator(height: 5),
+                bookWidget(),
+                separator(height: 15),
+                const Text('Chapter'),
+                separator(height: 5),
+                chapterWidget(),
+                separator(height: 15),
+                const Text('First Verse'),
+                separator(height: 5),
+                verseWidget(),
+                const Text('Second Verse'),
+                separator(height: 5),
+                verseSecondWidget(),
+                separator(height: 25),
+                Text(bibleVerse),
+                separator(height: 25),
+                // ElevatedButton(
+                //     onPressed: () {
+                //       getArticles();
+                //     },
+                //     child: const Text('Get Daily Readings')),
+                // separator(height: 25),
+                // ElevatedButton(
+                //     onPressed: () {
+                //       log('<========== ${topStories['rss']['channel']['item'].first['description']['\$t'].split(',')} =============>');
+                //     },
+                //     child: const Text('view')),
+                // separator(height: 25),
+                // ElevatedButton(
+                //     onPressed: () async {
+                //       // bibleRangeVerse(topStories['rss']['channel']['item'].first);
+                //     },
+                //     child: const Text('Resolve range verses')),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -152,7 +166,9 @@ class _BibleState extends State<Bible> {
     log('<========== $bookIndex =============>');
     List bookVerses = await BibleDataBase.instance.getRangeVerse(
         bookID: bookIndex, chapterID: chapterBible, verseRange: verseBible);
-    log('<========== ${bookVerses.join('\n')} =============>');
+    // log('<========== ${bookVerses.join('\n\n')} =============>');
+    bibleVerse = bookVerses.join('\n\n');
+    setState(() {});
   }
 
   Widget bibleWidget() => CustomPopupMenu(
@@ -180,18 +196,8 @@ class _BibleState extends State<Bible> {
                               // verse.text = '';
                               // bibleVerse = '';
                               if (isInitialized) {
-                                List result = await BibleDataBase.instance
-                                    .getVerse(
-                                        bookID:
-                                            (currentBookIndex + 1).toString(),
-                                        chapterID: chapter.text,
-                                        verseID: verse.text);
-                                if (result.isNotEmpty) {
-                                  bibleVerse = result.first['text'];
-                                }
+                                bibleRangeVerse(bibleBookChapterVerse);
                               }
-
-                              setState(() {});
                             }
                           },
                           child: Container(
@@ -247,6 +253,7 @@ class _BibleState extends State<Bible> {
                               currentBookIndex = e['index'] - 1;
                               chapter.text = '';
                               verse.text = '';
+                              verseSecond.text = '';
                               bibleVerse = '';
                             });
                           },
@@ -307,6 +314,7 @@ class _BibleState extends State<Bible> {
                             currentChapter = e;
                             chapter.text = e.toString();
                             verse.text = '';
+                            verseSecond.text = '';
                           });
                         },
                         child: Container(
@@ -366,14 +374,15 @@ class _BibleState extends State<Bible> {
                           popcontrollerverse.hideMenu();
                           currentVerse = e;
                           verse.text = e.toString();
-                          List result = await BibleDataBase.instance.getVerse(
-                              bookID: (currentBookIndex + 1).toString(),
-                              chapterID: chapter.text,
-                              verseID: verse.text);
-                          if (result.isNotEmpty) {
-                            bibleVerse = result.first['text'];
-                          }
                           setState(() {});
+                          // List result = await BibleDataBase.instance.getVerse(
+                          //     bookID: (currentBookIndex + 1).toString(),
+                          //     chapterID: chapter.text,
+                          //     verseID: verse.text);
+                          // if (result.isNotEmpty) {
+                          //   bibleVerse = result.first['text'];
+                          // }
+                          // setState(() {});
                         },
                         child: Container(
                           height: 40,
@@ -400,6 +409,69 @@ class _BibleState extends State<Bible> {
           children: [
             Text(
               verse.text,
+            ),
+            const Icon(
+              Icons.arrow_drop_down,
+              size: 25,
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget verseSecondWidget() {
+    List<int> verseInts = [];
+    for (var i = currentVerse;
+        i <= bibleBooks[currentBookIndex]['max_verses'];
+        i++) {
+      verseInts.add(i);
+    }
+    return CustomPopupMenu(
+      controller: popcontrollerversesecond,
+      pressType: PressType.singleClick,
+      menuBuilder: () {
+        return Container(
+          height: 200,
+          color: Colors.white,
+          width: 250,
+          child: SingleChildScrollView(
+            child: Column(
+              children: verseInts
+                  .map((e) => GestureDetector(
+                        onTap: () async {
+                          popcontrollerversesecond.hideMenu();
+                          currentVerseSecond = e;
+                          verseSecond.text = e.toString();
+                          bibleBookChapterVerse =
+                              '${book.text} ${chapter.text}:$currentVerse-$currentVerseSecond';
+                          bibleRangeVerse(bibleBookChapterVerse);
+                        },
+                        child: Container(
+                          height: 40,
+                          color: Colors.transparent,
+                          child: Center(
+                            child: Text(
+                              e.toString(),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                      ))
+                  .toList(),
+            ),
+          ),
+        );
+      },
+      child: Container(
+        height: 40,
+        decoration: BoxDecoration(color: Colors.grey[200]),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              verseSecond.text,
             ),
             const Icon(
               Icons.arrow_drop_down,
