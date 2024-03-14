@@ -4,7 +4,9 @@ import 'dart:convert';
 import 'dart:developer';
 import 'package:bible_picker/bibledata.dart';
 import 'package:bible_picker/bibleversions.dart';
+import 'package:bible_picker/classes.dart';
 import 'package:bible_picker/databasehandler.dart';
+import 'package:bible_picker/widgets.dart';
 import 'package:custom_pop_up_menu/custom_pop_up_menu.dart';
 import 'package:flutter/material.dart';
 import 'package:xml2json/xml2json.dart';
@@ -37,7 +39,6 @@ class _BibleState extends State<Bible> {
 
 // Method to fetch and parse the RSS feed
   Future<void> getArticles() async {
-    log('<========== $todayDate =============>');
     final url = Uri.parse('https://www.catholic.org/xml/rss_dailyreadings.php');
     final response = await http.get(url);
     // log(response.body.toString());
@@ -54,14 +55,18 @@ class _BibleState extends State<Bible> {
         setState(() {
           topStories = data;
         });
+        dailyReadingList = topStories['rss']['channel']['item']
+            .first['description']['\$t']
+            .split(',');
         log('<========== ${topStories['rss']['channel']['item'].first['description']['\$t'].split(',')} =============>');
-        log('<========== ${topStories['rss']['channel']['item'].first['link']} =============>');
+        // log('<========== ${topStories['rss']['channel']['item'].first['link']} =============>');
       }
     } catch (e) {
       log('<========== $e =============>');
     }
   }
 
+  List dailyReadingList = [];
   final CustomPopupMenuController popcontrollerbible =
       CustomPopupMenuController();
   final CustomPopupMenuController popcontrollerbook =
@@ -77,6 +82,7 @@ class _BibleState extends State<Bible> {
   TextEditingController book = TextEditingController();
   TextEditingController chapter = TextEditingController();
   TextEditingController verse = TextEditingController();
+  TextEditingController customVerseController = TextEditingController();
   int currentVerse = 0;
   TextEditingController verseSecond = TextEditingController();
   int currentVerseSecond = 0;
@@ -84,6 +90,9 @@ class _BibleState extends State<Bible> {
   int currentChapter = 0;
   String bibleVerse = '';
   String bibleBookChapterVerse = '';
+  bool showCustom = false;
+  bool showVerse = false;
+  List<Map> bibleCustomVerses = [];
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -111,26 +120,66 @@ class _BibleState extends State<Bible> {
                 const Text('Second Verse'),
                 separator(height: 5),
                 verseSecondWidget(),
+                separator(height: 15),
+                TextFormField(
+                  controller: customVerseController,
+                  decoration: Decor().textform(),
+                  onChanged: (value) {
+                    setState(() {
+                      showCustom = false;
+                      showVerse = false;
+                      bibleCustomVerses = [];
+                    });
+                  },
+                ),
                 separator(height: 25),
-                Text(bibleVerse),
+                if (showVerse) Text(bibleVerse),
+                if (showCustom)
+                  Column(
+                      children: bibleCustomVerses
+                          .map((e) => Column(
+                                children: [
+                                  Container(
+                                    height: 50,
+                                    width: double.infinity,
+                                    color: UserColors.purple,
+                                    alignment: Alignment.centerLeft,
+                                    padding: const EdgeInsets.only(left: 15),
+                                    child: Text(
+                                      e['book'],
+                                      style: Decor().textStyle(
+                                          size: 18, color: Colors.white),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: internalPadding(),
+                                    child: Text(
+                                      e['verse'],
+                                      style: Decor().textStyle(size: 18),
+                                    ),
+                                  )
+                                ],
+                              ))
+                          .toList()),
                 separator(height: 25),
-                // ElevatedButton(
-                //     onPressed: () {
-                //       getArticles();
-                //     },
-                //     child: const Text('Get Daily Readings')),
-                // separator(height: 25),
-                // ElevatedButton(
-                //     onPressed: () {
-                //       log('<========== ${topStories['rss']['channel']['item'].first['description']['\$t'].split(',')} =============>');
-                //     },
-                //     child: const Text('view')),
-                // separator(height: 25),
-                // ElevatedButton(
-                //     onPressed: () async {
-                //       // bibleRangeVerse(topStories['rss']['channel']['item'].first);
-                //     },
-                //     child: const Text('Resolve range verses')),
+                ElevatedButton(
+                    onPressed: () async {
+                      showVerse = true;
+                      showCustom = false;
+                    },
+                    child: const Text('show verse')),
+                separator(height: 25),
+                ElevatedButton(
+                    onPressed: () async {
+                      showVerse = false;
+                      showCustom = true;
+                      if (validator()) {
+                        generateCustomVerses();
+                      } else {
+                        log('failed');
+                      }
+                    },
+                    child: const Text('show custom verses')),
               ],
             ),
           ),
@@ -139,14 +188,68 @@ class _BibleState extends State<Bible> {
     );
   }
 
-  bibleRangeVerse(String book) async {
+  bool validator() {
+    bool allow = true;
+    List<String> customVerses = customVerseController.text.trim().split(',');
+    for (String element in customVerses) {
+      if (element.contains('-')) {
+        if (element.trim().contains(RegExp(r'[!@#$%^&*(),.?":;{}|<>_]'))) {
+          allow = false;
+          break;
+        }
+      } else {
+        if (int.tryParse(element.trim()) == null) {
+          allow = false;
+          break;
+        }
+      }
+    }
+    return allow;
+  }
+
+  generateCustomVerses() async {
+    bibleVerse = '';
+    bibleCustomVerses = [];
+    String bibleBookChapter = '${book.text} ${chapter.text}';
+    List<String> customVerses = customVerseController.text.trim().split(',');
+    for (String element in customVerses) {
+      if (element.contains('-')) {
+        String extractedVerse =
+            await bibleRangeVerse('$bibleBookChapter:${element.trim()}');
+        bibleCustomVerses.add({
+          'book': '$bibleBookChapter:${element.trim()}',
+          'verse': extractedVerse
+        });
+      } else {
+        String extractedVerse = await getSingleVerse(element.trim());
+        bibleCustomVerses.add({
+          'book': '$bibleBookChapter:${element.trim()}',
+          'verse': extractedVerse
+        });
+      }
+    }
+    setState(() {});
+  }
+
+  Future<String> getSingleVerse(String verse) async {
+    String resultText = '';
+    List result = await BibleDataBase.instance.getVerse(
+        bookID: (currentBookIndex + 1).toString(),
+        chapterID: currentChapter.toString(),
+        verseID: verse.toString());
+    if (result.isNotEmpty) {
+      resultText = result.first['text'];
+    }
+    return resultText;
+  }
+
+  Future<String> bibleRangeVerse(String book) async {
     String rangeBible = book;
     List<String> splitRangeBible = rangeBible.split(' ');
     String bibleBook = '';
     String chapterBible = '';
     List<String> verseBible = [];
     String bookIndex = '';
-
     if (splitRangeBible.length == 2) {
       bibleBook = splitRangeBible.first;
     } else {
@@ -154,21 +257,20 @@ class _BibleState extends State<Bible> {
     }
     chapterBible = splitRangeBible.last.split(':').first;
     verseBible = splitRangeBible.last.split(':').last.split('-');
-
     for (var element in bibleBooks) {
       if (element['book'] == bibleBook) {
         bookIndex = element['index'].toString();
       }
     }
-    log('<========== $bibleBook =============>');
-    log('<========== $chapterBible =============>');
-    log('<========== $verseBible =============>');
-    log('<========== $bookIndex =============>');
+    // dev.log('<========== $bibleBook =============>');
+    // dev.log('<========== $chapterBible =============>');
+    // dev.log('<========== $verseBible =============>');
+    // dev.log('<========== $bookIndex =============>');
     List bookVerses = await BibleDataBase.instance.getRangeVerse(
         bookID: bookIndex, chapterID: chapterBible, verseRange: verseBible);
-    // log('<========== ${bookVerses.join('\n\n')} =============>');
-    bibleVerse = bookVerses.join('\n\n');
+
     setState(() {});
+    return bookVerses.join('\n\n');
   }
 
   Widget bibleWidget() => CustomPopupMenu(
@@ -445,6 +547,9 @@ class _BibleState extends State<Bible> {
                           verseSecond.text = e.toString();
                           bibleBookChapterVerse =
                               '${book.text} ${chapter.text}:$currentVerse-$currentVerseSecond';
+                          showCustom = false;
+                          showVerse = true;
+                          setState(() {});
                           bibleRangeVerse(bibleBookChapterVerse);
                         },
                         child: Container(
